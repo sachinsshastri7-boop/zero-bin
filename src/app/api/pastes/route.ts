@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { redis, PasteRecord } from "@/lib/redis";
 
+// Enforce dynamic execution to prevent build-time static evaluation
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
