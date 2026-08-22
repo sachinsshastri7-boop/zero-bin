@@ -1,59 +1,38 @@
 import { NextResponse } from "next/server";
 import { redis, PasteRecord } from "@/lib/redis";
 
-// Enforce dynamic execution to prevent Vercel build-time pre-rendering errors
+// Enforce runtime execution to prevent build-time static evaluation
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const redisKey = `paste:${id}`;
+    const key = `paste:${id}`;
 
-    // Fetch record from Redis
-    let data = await redis.get<PasteRecord | string>(redisKey);
+    const record = await redis.get<PasteRecord | string>(key);
 
-    if (!data) {
+    if (!record) {
       return NextResponse.json(
-        { error: "Paste not found, expired, or already burned." },
+        { error: "Paste not found or expired." },
         { status: 404 }
       );
     }
 
-    let record: PasteRecord =
-      typeof data === "string" ? JSON.parse(data) : data;
+    const parsedRecord: PasteRecord =
+      typeof record === "string" ? JSON.parse(record) : record;
 
-    // Burn after read: Atomically delete the key on access
-    if (record.burnAfterRead) {
-      const atomicData = await redis.getdel<PasteRecord | string>(redisKey);
-      if (!atomicData) {
-        return NextResponse.json(
-          { error: "Paste not found, expired, or already burned." },
-          { status: 404 }
-        );
-      }
-      record = typeof atomicData === "string" ? JSON.parse(atomicData) : atomicData;
+    if (parsedRecord.burnAfterRead) {
+      await redis.del(key);
     }
 
-    return NextResponse.json(
-      {
-        ciphertext: record.ciphertext,
-        iv: record.iv,
-        burnAfterRead: record.burnAfterRead,
-        createdAt: record.createdAt,
-      },
-      {
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-        },
-      }
-    );
+    return NextResponse.json(parsedRecord, { status: 200 });
   } catch (error) {
     console.error("Error retrieving paste:", error);
     return NextResponse.json(
-      { error: "Internal server error while retrieving paste." },
+      { error: "Internal server error while fetching paste." },
       { status: 500 }
     );
   }

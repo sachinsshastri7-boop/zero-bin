@@ -7,15 +7,24 @@ export interface PasteRecord {
   createdAt: number;
 }
 
-const url =
-  process.env.UPSTASH_REDIS_REST_URL ||
-  "https://proven-adder-137705.upstash.io";
+let redisInstance: Redis | null = null;
 
-const token =
-  process.env.UPSTASH_REDIS_REST_TOKEN ||
-  "gQAAAAAAAhnpAAIgcDI2MjgwOWY5MGQyNGM0YTI0OTlhYWYyNDI3MjJhYmFhNQ";
+export const redis = new Proxy({} as Redis, {
+  get(_target, prop: keyof Redis) {
+    if (!redisInstance) {
+      const rawUrl =
+        process.env.UPSTASH_REDIS_REST_URL ||
+        "https://proven-adder-137705.upstash.io";
 
-export const redis = new Redis({
-  url: url.trim(),
-  token: token.trim(),
+      const rawToken =
+        process.env.UPSTASH_REDIS_REST_TOKEN ||
+        "gQAAAAAAAhnpAAIgcDI2MjgwOWY5MGQyNGM0YTI0OTlhYWYyNDI3MjJhYmFhNQ";
+
+      const url = rawUrl.replace(/^["']|["']$/g, "").trim();
+      const token = rawToken.replace(/^["']|["']$/g, "").trim();
+
+      redisInstance = new Redis({ url, token });
+    }
+    return (redisInstance as any)[prop];
+  },
 });
