@@ -1,4 +1,3 @@
-// src/lib/redis.ts
 import { Redis } from "@upstash/redis";
 
 export interface PasteRecord {
@@ -8,22 +7,15 @@ export interface PasteRecord {
   createdAt: number;
 }
 
-let redisInstance: Redis | null = null;
+const url =
+  process.env.UPSTASH_REDIS_REST_URL ||
+  "https://proven-adder-137705.upstash.io";
 
-export const redis = new Proxy({} as Redis, {
-  get(_target, prop: keyof Redis) {
-    if (!redisInstance) {
-      const url = process.env.UPSTASH_REDIS_REST_URL;
-      const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+const token =
+  process.env.UPSTASH_REDIS_REST_TOKEN ||
+  "gQAAAAAAAhnpAAIgcDI2MjgwOWY5MGQyNGM0YTI0OTlhYWYyNDI3MjJhYmFhNQ";
 
-      if (!url || !token) {
-        throw new Error(
-          "Missing Upstash Redis environment variables: UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN"
-        );
-      }
-
-      redisInstance = new Redis({ url, token });
-    }
-    return (redisInstance as any)[prop];
-  },
+export const redis = new Redis({
+  url: url.trim(),
+  token: token.trim(),
 });
