@@ -198,15 +198,15 @@ export default function DecryptPage({
   const lines = displayText ? displayText.split("\n") : [];
 
   return (
-    <main className="relative min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4 selection:bg-emerald-500/30 selection:text-emerald-300 overflow-x-hidden">
-      {/* Glow Effects */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
+    <main className="relative min-h-screen bg-[#09090b] text-zinc-100 flex flex-col items-center justify-center p-4 selection:bg-emerald-500/30 selection:text-emerald-300 overflow-x-hidden">
+      {/* Background Glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[450px] h-[450px] bg-emerald-500/10 blur-[130px] rounded-full pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-3xl space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono shadow-inner">
-            <Unlock className="h-3.5 w-3.5 animate-pulse" /> Client-Side Decryption
+            <Unlock className="h-3.5 w-3.5" /> Client-Side Decryption
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             Encrypted <span className="text-emerald-400">Payload</span>
@@ -214,7 +214,7 @@ export default function DecryptPage({
         </div>
 
         {loading && (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-xl p-12 text-center space-y-3 shadow-2xl animate-pulse">
+          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 backdrop-blur-2xl p-12 text-center space-y-3 shadow-2xl">
             <Lock className="h-8 w-8 text-emerald-400 animate-spin mx-auto" />
             <p className="text-sm text-zinc-400 font-mono">
               Decrypting payload in browser...
@@ -224,9 +224,9 @@ export default function DecryptPage({
 
         {/* Passphrase Prompt */}
         {!loading && requiresPassword && (
-          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 backdrop-blur-xl p-8 max-w-md mx-auto space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 backdrop-blur-2xl p-8 max-w-md mx-auto space-y-4 shadow-2xl">
             <div className="text-center space-y-2">
-              <div className="inline-flex p-3.5 rounded-full bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30 shadow-lg shadow-emerald-500/5">
+              <div className="inline-flex p-3.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
                 <KeyRound className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-semibold text-zinc-100">
@@ -249,7 +249,7 @@ export default function DecryptPage({
               </div>
 
               {passwordError && (
-                <p className="text-xs text-red-400 text-center font-mono animate-shake">
+                <p className="text-xs text-red-400 text-center font-mono">
                   Incorrect passphrase. Decryption failed.
                 </p>
               )}
@@ -265,7 +265,7 @@ export default function DecryptPage({
         )}
 
         {error && !loading && (
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 backdrop-blur-xl p-8 text-center space-y-3 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 backdrop-blur-xl p-8 text-center space-y-3 shadow-2xl">
             <AlertTriangle className="h-8 w-8 text-red-400 mx-auto" />
             <h3 className="text-base font-semibold text-red-300">
               Unable to Decrypt
@@ -282,11 +282,11 @@ export default function DecryptPage({
 
         {/* Decrypted Output */}
         {!loading && !requiresPassword && !error && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-300">
+          <div className="space-y-4">
             {/* Decoy Warning Banner */}
             {isDecoyView && (
               <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-400 backdrop-blur-md">
-                <ShieldAlert className="h-5 w-5 shrink-0 animate-bounce" />
+                <ShieldAlert className="h-5 w-5 shrink-0" />
                 <div className="text-xs">
                   <span className="font-semibold">Decoy Payload Active:</span>{" "}
                   Displaying cover payload revealed by decoy passphrase.
@@ -297,9 +297,9 @@ export default function DecryptPage({
             {/* Burn Warning Banner */}
             {pasteInfo?.burnAfterRead && (
               <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-400 backdrop-blur-md">
-                <Flame className="h-5 w-5 shrink-0 animate-pulse" />
+                <Flame className="h-5 w-5 shrink-0" />
                 <div className="text-xs">
-                  <span className="font-semibold">Burn After Reading Active:</span>{" "}
+                  <span className="font-semibold">Burn-After-Reading Active:</span>{" "}
                   This paste has been purged from the database and cannot be reloaded.
                 </div>
               </div>
@@ -362,7 +362,7 @@ export default function DecryptPage({
             )}
 
             {/* Text Viewer */}
-            <div className="relative rounded-2xl border border-zinc-800/80 bg-zinc-900/70 backdrop-blur-xl overflow-hidden shadow-2xl">
+            <div className="relative rounded-2xl border border-zinc-800/90 bg-zinc-900/70 backdrop-blur-2xl overflow-hidden shadow-2xl">
               {showRaw ? (
                 <textarea
                   readOnly
