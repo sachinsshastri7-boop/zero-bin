@@ -13,6 +13,7 @@ import {
   Copy,
   Check,
   QrCode,
+  Sparkles,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import HowItWorksModal from "@/components/HowItWorksModal";
@@ -69,7 +70,6 @@ export default function Home() {
     setIsSubmitting(true);
 
     try {
-      // 1. Pack everything into a single payload
       const payload = {
         real: {
           text,
@@ -83,7 +83,6 @@ export default function Home() {
       const payloadString = JSON.stringify(payload);
       const enc = new TextEncoder();
 
-      // 2. ALWAYS generate a random URL key (so both passwords can work)
       const cryptoKey = await crypto.subtle.generateKey(
         { name: "AES-GCM", length: 256 },
         true,
@@ -95,7 +94,6 @@ export default function Home() {
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const ivBase64 = btoa(String.fromCharCode(...new Uint8Array(iv)));
 
-      // 3. Encrypt the payload wrapper
       const encryptedBuffer = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv },
         cryptoKey,
@@ -105,7 +103,6 @@ export default function Home() {
         String.fromCharCode(...new Uint8Array(encryptedBuffer))
       );
 
-      // 4. Send to Database
       const res = await fetch("/api/pastes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -121,7 +118,6 @@ export default function Home() {
 
       const { id } = await res.json();
       
-      // Check if either password was provided to append the UI trigger tag
       const hasPassword = passphrase.trim() || decoyPassphrase.trim();
       const hashFragment = hasPassword ? `${keyBase64}:pwd` : keyBase64;
       const fullUrl = `${window.location.origin}/v/${id}#${hashFragment}`;
@@ -129,7 +125,7 @@ export default function Home() {
       setCreatedUrl(fullUrl);
     } catch (err) {
       console.error("Encryption submit error:", err);
-      alert("Error creating encrypted paste. Check console for details.");
+      alert("Error creating encrypted paste.");
     } finally {
       setIsSubmitting(false);
     }
@@ -143,31 +139,36 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4">
+    <main className="relative min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4 selection:bg-emerald-500/30 selection:text-emerald-300 overflow-x-hidden">
+      {/* Dynamic Background Glows */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-emerald-700/5 blur-[100px] rounded-full pointer-events-none" />
+
       {showHowItWorks && (
         <HowItWorksModal onClose={() => setShowHowItWorks(false)} />
       )}
 
-      <div className="w-full max-w-3xl space-y-6">
+      <div className="relative z-10 w-full max-w-3xl space-y-6 transition-all duration-300 ease-out">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="rounded-xl bg-emerald-500/10 p-2 text-emerald-400">
-              <Lock className="h-6 w-6" />
+          <div className="flex items-center gap-3 group">
+            <div className="rounded-xl bg-emerald-500/10 p-2.5 text-emerald-400 ring-1 ring-emerald-500/20 group-hover:scale-105 group-hover:ring-emerald-500/40 transition-all duration-300 shadow-lg shadow-emerald-500/5">
+              <Lock className="h-6 w-6 transition-transform duration-300 group-hover:-rotate-12" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-white">
+              <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1.5">
                 Zero<span className="text-emerald-400">Bin</span>
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               </h1>
-              <p className="text-xs text-zinc-400">
-                Zero-Knowledge Encrypted Pastebin
+              <p className="text-xs text-zinc-400 font-medium">
+                Zero-Knowledge Ephemeral Encrypted Pastebin
               </p>
             </div>
           </div>
 
           <button
             onClick={() => setShowHowItWorks(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-emerald-500/30 hover:text-emerald-400 transition"
+            className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/80 backdrop-blur-md px-3.5 py-2 text-xs font-medium text-zinc-300 hover:border-emerald-500/40 hover:text-emerald-400 hover:bg-zinc-800/80 active:scale-95 transition-all duration-200 shadow-sm"
           >
             <HelpCircle className="h-4 w-4" /> How It Works
           </button>
@@ -175,16 +176,16 @@ export default function Home() {
 
         {/* Creation Form */}
         {!createdUrl ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-300">
             {/* Top Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl border border-zinc-800 bg-zinc-900/60">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-zinc-400">Expiration</span>
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl border border-zinc-800/80 bg-zinc-900/50 backdrop-blur-xl shadow-inner">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-400 font-medium">Expiration</span>
                   <select
                     value={ttl}
                     onChange={(e) => setTtl(e.target.value)}
-                    className="rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs text-zinc-200 focus:border-emerald-500/50 focus:outline-none"
+                    className="rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-1.5 text-xs text-zinc-200 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all duration-200 cursor-pointer"
                   >
                     <option value="300">5 Minutes</option>
                     <option value="3600">1 Hour</option>
@@ -194,43 +195,44 @@ export default function Home() {
                 </div>
 
                 <div className="relative flex items-center">
-                  <Key className="absolute left-2.5 h-3.5 w-3.5 text-zinc-500" />
+                  <Key className="absolute left-3 h-3.5 w-3.5 text-zinc-500" />
                   <input
                     type="password"
                     placeholder="Optional Passphrase"
                     value={passphrase}
                     onChange={(e) => setPassphrase(e.target.value)}
-                    className="w-44 rounded-lg border border-zinc-800 bg-zinc-950 pl-8 pr-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:border-emerald-500/50 focus:outline-none"
+                    className="w-44 rounded-xl border border-zinc-800 bg-zinc-950/80 pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all duration-200"
                   />
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300 select-none">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300 select-none group">
                 <input
                   type="checkbox"
                   checked={burnAfterRead}
                   onChange={(e) => setBurnAfterRead(e.target.checked)}
-                  className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500/20"
+                  className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500/20 transition-all duration-150 cursor-pointer"
                 />
-                <Flame className="h-4 w-4 text-amber-500" /> Burn After Reading
+                <Flame className={`h-4 w-4 transition-transform duration-300 ${burnAfterRead ? "text-amber-500 scale-110 animate-bounce" : "text-zinc-500 group-hover:text-amber-400"}`} />
+                <span className="group-hover:text-amber-400 transition-colors duration-200">Burn After Reading</span>
               </label>
             </div>
 
             {/* Main Text Editor */}
-            <div className="relative rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3">
+            <div className="relative rounded-2xl border border-zinc-800/80 bg-zinc-900/40 backdrop-blur-xl p-4 space-y-3 transition-all duration-300 focus-within:border-emerald-500/40 focus-within:ring-2 focus-within:ring-emerald-500/10 shadow-xl">
               <textarea
                 rows={10}
                 placeholder="Paste your private code, credentials, or secret payload..."
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                className="w-full resize-none bg-transparent font-mono text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none"
+                className="w-full resize-none bg-transparent font-mono text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none scrollbar-thin scrollbar-thumb-zinc-800"
               />
 
-              <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80 text-xs text-zinc-500">
+              <div className="flex items-center justify-between pt-3 border-t border-zinc-800/60 text-xs text-zinc-500 font-mono">
                 <span>
                   {text.length} chars | {(new Blob([text]).size / 1024).toFixed(2)} KB
                 </span>
-                <label className="flex items-center gap-1.5 cursor-pointer text-emerald-400 hover:text-emerald-300 transition font-medium">
+                <label className="flex items-center gap-1.5 cursor-pointer text-emerald-400 hover:text-emerald-300 active:scale-95 transition-all duration-150 font-sans font-medium">
                   <Paperclip className="h-4 w-4" />
                   {attachment ? attachment.name : "Attach File"}
                   <input
@@ -243,26 +245,24 @@ export default function Home() {
             </div>
 
             {/* Plausible Deniability Accordion */}
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/30 backdrop-blur-md overflow-hidden transition-all duration-300">
               <button
                 type="button"
                 onClick={() => setShowDecoy(!showDecoy)}
-                className="w-full flex items-center justify-between p-4 text-left text-xs font-semibold text-zinc-300 hover:bg-zinc-800/40 transition"
+                className="w-full flex items-center justify-between p-4 text-left text-xs font-semibold text-zinc-300 hover:bg-zinc-800/30 transition-colors duration-200"
               >
                 <div className="flex items-center gap-2">
                   <ShieldAlert className="h-4 w-4 text-amber-400" />
                   Enable Decoy / Cover Payload (Plausible Deniability)
                 </div>
-                {showDecoy ? (
-                  <ChevronUp className="h-4 w-4 text-zinc-400" />
-                ) : (
+                <div className={`transform transition-transform duration-300 ${showDecoy ? "rotate-180" : "rotate-0"}`}>
                   <ChevronDown className="h-4 w-4 text-zinc-400" />
-                )}
+                </div>
               </button>
 
               {showDecoy && (
-                <div className="p-4 pt-0 space-y-3">
-                  <p className="text-[11px] text-zinc-400">
+                <div className="p-4 pt-0 space-y-3 animate-in fade-in duration-200">
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
                     Enter innocent cover text below. If forced to reveal your secret, give the decoy passphrase to display this harmless payload instead.
                   </p>
                   
@@ -271,7 +271,7 @@ export default function Home() {
                     placeholder="Innocent cover message (e.g. standard API docs or grocery list)..."
                     value={decoyText}
                     onChange={(e) => setDecoyText(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:border-amber-500/50 focus:outline-none resize-none"
+                    className="w-full rounded-xl border border-zinc-800/80 bg-zinc-950/80 p-3 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10 focus:outline-none resize-none transition-all duration-200"
                   />
 
                   <div>
@@ -283,7 +283,7 @@ export default function Home() {
                       placeholder="Optional Decoy Passphrase..."
                       value={decoyPassphrase}
                       onChange={(e) => setDecoyPassphrase(e.target.value)}
-                      className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:border-amber-500/50 focus:outline-none"
+                      className="w-full rounded-xl border border-zinc-800/80 bg-zinc-950/80 px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10 focus:outline-none transition-all duration-200"
                     />
                   </div>
                 </div>
@@ -294,25 +294,35 @@ export default function Home() {
             <button
               type="submit"
               disabled={isSubmitting || (!text.trim() && !attachment)}
-              className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-emerald-500/15 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 overflow-hidden"
             >
-              {isSubmitting ? "Encrypting Client-Side..." : "Create Encrypted Paste"}
+              <span className="relative z-10 flex items-center justify-center gap-2">
+                {isSubmitting ? (
+                  <>
+                    <Lock className="h-4 w-4 animate-spin" /> Encrypting Client-Side...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" /> Create Encrypted Paste
+                  </>
+                )}
+              </span>
             </button>
           </form>
         ) : (
           /* Share Link Box */
-          <div className="rounded-2xl border border-emerald-500/30 bg-zinc-900/60 p-6 space-y-6 text-center">
+          <div className="rounded-2xl border border-emerald-500/30 bg-zinc-900/60 backdrop-blur-xl p-6 space-y-6 text-center shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="space-y-2">
-              <div className="inline-flex p-3 rounded-full bg-emerald-500/10 text-emerald-400">
+              <div className="inline-flex p-3 rounded-full bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30 animate-pulse">
                 <Check className="h-6 w-6" />
               </div>
               <h2 className="text-xl font-bold text-white">Paste Encrypted & Stored</h2>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-zinc-400 max-w-sm mx-auto">
                 The decryption key is strictly contained within the link URL hash fragment.
               </p>
             </div>
 
-            <div className="flex items-center gap-2 p-2 rounded-xl border border-zinc-800 bg-zinc-950">
+            <div className="flex items-center gap-2 p-2 rounded-xl border border-zinc-800 bg-zinc-950/80 backdrop-blur-md">
               <input
                 type="text"
                 readOnly
@@ -321,21 +331,21 @@ export default function Home() {
               />
               <button
                 onClick={copyUrl}
-                className="flex items-center gap-1 shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 transition"
+                className="flex items-center gap-1.5 shrink-0 rounded-lg bg-emerald-500 px-3.5 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 active:scale-95 transition-all duration-150 shadow-md shadow-emerald-500/10"
               >
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 {copied ? "Copied" : "Copy"}
               </button>
               <button
                 onClick={() => setShowQr(!showQr)}
-                className="p-1.5 rounded-lg border border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white transition"
+                className="p-1.5 rounded-lg border border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white active:scale-95 transition-all duration-150"
               >
                 <QrCode className="h-4 w-4" />
               </button>
             </div>
 
             {showQr && (
-              <div className="flex flex-col items-center justify-center p-4 bg-white rounded-xl w-fit mx-auto">
+              <div className="flex flex-col items-center justify-center p-4 bg-white rounded-xl w-fit mx-auto shadow-2xl animate-in fade-in zoom-in-90 duration-200">
                 <QRCodeSVG value={createdUrl} size={160} />
               </div>
             )}
@@ -349,7 +359,7 @@ export default function Home() {
                 setPassphrase("");
                 setAttachment(null);
               }}
-              className="text-xs text-zinc-400 hover:text-white underline"
+              className="text-xs text-zinc-400 hover:text-emerald-400 underline transition-colors duration-200"
             >
               Create Another Paste
             </button>

@@ -82,14 +82,12 @@ export default function DecryptPage({
         const data: PasteData = await res.json();
         setPasteInfo(data);
 
-        // If the URL has the password UI flag
         if (hash.includes(":pwd")) {
           setRequiresPassword(true);
           setLoading(false);
           return;
         }
 
-        // Standard decryption path (no passphrase set)
         await decryptWithRawKey(hash, data);
       } catch (err: any) {
         console.error("Decryption error:", err);
@@ -103,7 +101,6 @@ export default function DecryptPage({
     fetchAndDecrypt();
   }, [id]);
 
-  // Fallback for pastes with NO passphrases
   const decryptWithRawKey = async (rawKeyBase64: string, data: PasteData) => {
     const rawKey = Uint8Array.from(atob(rawKeyBase64), (c) => c.charCodeAt(0));
     const cryptoKey = await crypto.subtle.importKey(
@@ -146,7 +143,6 @@ export default function DecryptPage({
     setPasswordError(false);
 
     try {
-      // 1. Decrypt using the URL hash key
       const hash = window.location.hash.substring(1).split(":")[0];
       const rawKey = Uint8Array.from(atob(hash), (c) => c.charCodeAt(0));
       const cryptoKey = await crypto.subtle.importKey(
@@ -162,7 +158,6 @@ export default function DecryptPage({
         c.charCodeAt(0)
       );
 
-      // 2. Unlock the JSON wrapper
       const decryptedBuffer = await crypto.subtle.decrypt(
         { name: "AES-GCM", iv },
         cryptoKey,
@@ -172,7 +167,6 @@ export default function DecryptPage({
       const decoded = new TextDecoder().decode(decryptedBuffer);
       const parsed: DecryptedPayload = JSON.parse(decoded);
 
-      // 3. Verify which password was entered to reveal correct payload
       if (parsed.decoyPassphrase && inputPassword === parsed.decoyPassphrase) {
         setDisplayText(parsed.decoy?.text || "No cover text set.");
         setIsDecoyView(true);
@@ -204,12 +198,15 @@ export default function DecryptPage({
   const lines = displayText ? displayText.split("\n") : [];
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-3xl space-y-6">
+    <main className="relative min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4 selection:bg-emerald-500/30 selection:text-emerald-300 overflow-x-hidden">
+      {/* Glow Effects */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-3xl space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono">
-            <Unlock className="h-3.5 w-3.5" /> Client-Side Decryption
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono shadow-inner">
+            <Unlock className="h-3.5 w-3.5 animate-pulse" /> Client-Side Decryption
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             Encrypted <span className="text-emerald-400">Payload</span>
@@ -217,8 +214,8 @@ export default function DecryptPage({
         </div>
 
         {loading && (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-12 text-center space-y-3">
-            <Lock className="h-8 w-8 text-emerald-400 animate-pulse mx-auto" />
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-xl p-12 text-center space-y-3 shadow-2xl animate-pulse">
+            <Lock className="h-8 w-8 text-emerald-400 animate-spin mx-auto" />
             <p className="text-sm text-zinc-400 font-mono">
               Decrypting payload in browser...
             </p>
@@ -227,9 +224,9 @@ export default function DecryptPage({
 
         {/* Passphrase Prompt */}
         {!loading && requiresPassword && (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 max-w-md mx-auto space-y-4 shadow-2xl">
+          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 backdrop-blur-xl p-8 max-w-md mx-auto space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="text-center space-y-2">
-              <div className="inline-flex p-3 rounded-full bg-emerald-500/10 text-emerald-400">
+              <div className="inline-flex p-3.5 rounded-full bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30 shadow-lg shadow-emerald-500/5">
                 <KeyRound className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-semibold text-zinc-100">
@@ -247,19 +244,19 @@ export default function DecryptPage({
                   placeholder="Enter secret passphrase..."
                   value={inputPassword}
                   onChange={(e) => setInputPassword(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-xl border border-zinc-700/80 bg-zinc-800/80 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all duration-200"
                 />
               </div>
 
               {passwordError && (
-                <p className="text-xs text-red-400 text-center font-mono">
+                <p className="text-xs text-red-400 text-center font-mono animate-shake">
                   Incorrect passphrase. Decryption failed.
                 </p>
               )}
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs transition shadow-md shadow-emerald-500/10"
+                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs transition-all duration-200 shadow-lg shadow-emerald-500/15 active:scale-95"
               >
                 Decrypt Paste
               </button>
@@ -268,7 +265,7 @@ export default function DecryptPage({
         )}
 
         {error && !loading && (
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-8 text-center space-y-3">
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 backdrop-blur-xl p-8 text-center space-y-3 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <AlertTriangle className="h-8 w-8 text-red-400 mx-auto" />
             <h3 className="text-base font-semibold text-red-300">
               Unable to Decrypt
@@ -285,11 +282,11 @@ export default function DecryptPage({
 
         {/* Decrypted Output */}
         {!loading && !requiresPassword && !error && (
-          <div className="space-y-4">
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-300">
             {/* Decoy Warning Banner */}
             {isDecoyView && (
-              <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-400">
-                <ShieldAlert className="h-5 w-5 shrink-0" />
+              <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-400 backdrop-blur-md">
+                <ShieldAlert className="h-5 w-5 shrink-0 animate-bounce" />
                 <div className="text-xs">
                   <span className="font-semibold">Decoy Payload Active:</span>{" "}
                   Displaying cover payload revealed by decoy passphrase.
@@ -299,8 +296,8 @@ export default function DecryptPage({
 
             {/* Burn Warning Banner */}
             {pasteInfo?.burnAfterRead && (
-              <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-400">
-                <Flame className="h-5 w-5 shrink-0" />
+              <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-400 backdrop-blur-md">
+                <Flame className="h-5 w-5 shrink-0 animate-pulse" />
                 <div className="text-xs">
                   <span className="font-semibold">Burn After Reading Active:</span>{" "}
                   This paste has been purged from the database and cannot be reloaded.
@@ -309,11 +306,11 @@ export default function DecryptPage({
             )}
 
             {/* View Action Bar */}
-            <div className="flex items-center justify-between gap-4 p-3 rounded-xl border border-zinc-800 bg-zinc-900/50">
+            <div className="flex items-center justify-between gap-4 p-3 rounded-xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-md">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowRaw(!showRaw)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 active:scale-95 ${
                     showRaw
                       ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                       : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
@@ -326,7 +323,7 @@ export default function DecryptPage({
 
               <button
                 onClick={copyToClipboard}
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3.5 py-1.5 text-xs font-semibold text-black transition hover:bg-emerald-400 shadow-md shadow-emerald-500/10"
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3.5 py-1.5 text-xs font-semibold text-black transition-all duration-150 hover:bg-emerald-400 active:scale-95 shadow-md shadow-emerald-500/10"
               >
                 {copied ? (
                   <>
@@ -342,7 +339,7 @@ export default function DecryptPage({
 
             {/* Attachment Section */}
             {attachment && !isDecoyView && (
-              <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400">
+              <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400 backdrop-blur-md">
                 <div className="flex items-center gap-3 truncate">
                   <Paperclip className="h-5 w-5 shrink-0" />
                   <div className="truncate">
@@ -357,7 +354,7 @@ export default function DecryptPage({
                 <a
                   href={attachment.data}
                   download={attachment.name}
-                  className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-emerald-400 shrink-0"
+                  className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black transition-all duration-150 hover:bg-emerald-400 active:scale-95 shrink-0"
                 >
                   <Download className="h-3.5 w-3.5" /> Download
                 </a>
@@ -365,7 +362,7 @@ export default function DecryptPage({
             )}
 
             {/* Text Viewer */}
-            <div className="relative rounded-2xl border border-zinc-800 bg-zinc-900/80 overflow-hidden">
+            <div className="relative rounded-2xl border border-zinc-800/80 bg-zinc-900/70 backdrop-blur-xl overflow-hidden shadow-2xl">
               {showRaw ? (
                 <textarea
                   readOnly
@@ -378,8 +375,8 @@ export default function DecryptPage({
                   <table className="w-full border-collapse">
                     <tbody>
                       {lines.map((line, idx) => (
-                        <tr key={idx} className="hover:bg-zinc-800/30">
-                          <td className="w-12 select-none text-right pr-4 text-xs text-zinc-600 border-r border-zinc-800">
+                        <tr key={idx} className="hover:bg-zinc-800/40 transition-colors duration-100">
+                          <td className="w-12 select-none text-right pr-4 text-xs text-zinc-600 border-r border-zinc-800/80">
                             {idx + 1}
                           </td>
                           <td className="pl-4 whitespace-pre-wrap text-zinc-200">
@@ -393,9 +390,9 @@ export default function DecryptPage({
               )}
 
               {/* Status Footer */}
-              <div className="flex items-center justify-between border-t border-zinc-800 px-4 py-2.5 text-xs text-zinc-500 font-mono bg-zinc-950/40">
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3 text-emerald-400" /> AES-256 Verified
+              <div className="flex items-center justify-between border-t border-zinc-800/80 px-4 py-2.5 text-xs text-zinc-500 font-mono bg-zinc-950/50 backdrop-blur-md">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-emerald-400" /> AES-256 Verified
                 </span>
                 <span>{lines.length} lines</span>
               </div>
@@ -405,7 +402,7 @@ export default function DecryptPage({
             <div className="flex justify-center pt-2">
               <a
                 href="/"
-                className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-emerald-400 transition"
+                className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-emerald-400 transition-colors duration-200"
               >
                 Create your own encrypted paste <ExternalLink className="h-3 w-3" />
               </a>
