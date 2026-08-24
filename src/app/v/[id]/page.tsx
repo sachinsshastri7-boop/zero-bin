@@ -14,7 +14,7 @@ import {
   Download,
   Paperclip,
   KeyRound,
-  EyeOff,
+  ShieldAlert,
 } from "lucide-react";
 
 interface PasteData {
@@ -35,8 +35,9 @@ interface DecryptedPayload {
   };
   decoy?: {
     text: string;
-    hasDecoy?: boolean;
   } | null;
+  decoyPassphrase?: string;
+  realPassphrase?: string;
 }
 
 export default function DecryptPage({
@@ -52,15 +53,14 @@ export default function DecryptPage({
   const [copied, setCopied] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
 
-  // Passphrase prompt state
+  // Passphrase state
   const [requiresPassword, setRequiresPassword] = useState(false);
   const [inputPassword, setInputPassword] = useState("");
   const [passwordError, setPasswordError] = useState(false);
 
-  // Decrypted output state
+  // Decrypted outputs
   const [displayText, setDisplayText] = useState<string>("");
   const [attachment, setAttachment] = useState<DecryptedPayload["real"]["attachment"]>(null);
-  const [hasDecoy, setHasDecoy] = useState(false);
   const [isDecoyView, setIsDecoyView] = useState(false);
 
   useEffect(() => {
@@ -82,14 +82,14 @@ export default function DecryptPage({
         const data: PasteData = await res.json();
         setPasteInfo(data);
 
-        // Check if custom password flag is present in hash
+        // Check if custom password flag is set in hash
         if (hash.includes(":pwd")) {
           setRequiresPassword(true);
           setLoading(false);
           return;
         }
 
-        // Standard decryption path (no custom passphrase)
+        // Standard direct decryption (no custom passphrase)
         await decryptWithRawKey(hash, data);
       } catch (err: any) {
         console.error("Decryption error:", err);
@@ -103,19 +103,30 @@ export default function DecryptPage({
     fetchAndDecrypt();
   }, [id]);
 
-  const parseAndSetPayload = (rawString: string) => {
+  const parseAndSetPayload = (rawString: string, userEnteredPwd?: string) => {
     try {
       const parsed: DecryptedPayload = JSON.parse(rawString);
+      
+      // Check if user entered decoy passphrase vs real passphrase
+      if (
+        userEnteredPwd &&
+        parsed.decoyPassphrase &&
+        userEnteredPwd === parsed.decoyPassphrase
+      ) {
+        setDisplayText(parsed.decoy?.text || "Decoy Cover Payload Active.");
+        setIsDecoyView(true);
+        setAttachment(null);
+        return;
+      }
+
       if (parsed && parsed.real) {
         setDisplayText(parsed.real.text || "");
         setAttachment(parsed.real.attachment || null);
-        if (parsed.decoy) {
-          setHasDecoy(true);
-        }
+        setIsDecoyView(false);
         return;
       }
     } catch {
-      // Fallback if payload is legacy direct text
+      // Direct raw text fallback
     }
     setDisplayText(rawString);
   };
@@ -189,7 +200,7 @@ export default function DecryptPage({
       );
 
       const decoded = new TextDecoder().decode(decryptedBuffer);
-      parseAndSetPayload(decoded);
+      parseAndSetPayload(decoded, inputPassword);
       setRequiresPassword(false);
     } catch (err) {
       console.error("Password decryption failed:", err);
@@ -230,9 +241,9 @@ export default function DecryptPage({
           </div>
         )}
 
-        {/* Passphrase Prompt View */}
+        {/* Passphrase Prompt */}
         {!loading && requiresPassword && (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 max-w-md mx-auto space-y-4">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 max-w-md mx-auto space-y-4 shadow-2xl">
             <div className="text-center space-y-2">
               <div className="inline-flex p-3 rounded-full bg-emerald-500/10 text-emerald-400">
                 <KeyRound className="h-6 w-6" />
@@ -241,7 +252,7 @@ export default function DecryptPage({
                 Passphrase Required
               </h3>
               <p className="text-xs text-zinc-400">
-                This paste is protected with a custom secret passphrase.
+                Enter primary passphrase or decoy passphrase.
               </p>
             </div>
 
@@ -288,21 +299,32 @@ export default function DecryptPage({
           </div>
         )}
 
-        {/* Decrypted Content View */}
+        {/* Decrypted Output */}
         {!loading && !requiresPassword && !error && (
           <div className="space-y-4">
+            {/* Decoy Warning Banner */}
+            {isDecoyView && (
+              <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-400">
+                <ShieldAlert className="h-5 w-5 shrink-0" />
+                <div className="text-xs">
+                  <span className="font-semibold">Decoy Payload Active:</span>{" "}
+                  Displaying cover payload revealed by decoy passphrase.
+                </div>
+              </div>
+            )}
+
             {/* Burn Warning Banner */}
             {pasteInfo?.burnAfterRead && (
               <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-400">
                 <Flame className="h-5 w-5 shrink-0" />
                 <div className="text-xs">
                   <span className="font-semibold">Burn After Reading Active:</span>{" "}
-                  This paste has been deleted from the server and cannot be viewed again.
+                  This paste has been purged from the database and cannot be reloaded.
                 </div>
               </div>
             )}
 
-            {/* View Controls & Action Bar */}
+            {/* View Action Bar */}
             <div className="flex items-center justify-between gap-4 p-3 rounded-xl border border-zinc-800 bg-zinc-900/50">
               <div className="flex items-center gap-2">
                 <button
@@ -334,8 +356,8 @@ export default function DecryptPage({
               </button>
             </div>
 
-            {/* Encrypted Attachment Section */}
-            {attachment && (
+            {/* Attachment Section */}
+            {attachment && !isDecoyView && (
               <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400">
                 <div className="flex items-center gap-3 truncate">
                   <Paperclip className="h-5 w-5 shrink-0" />
@@ -358,7 +380,7 @@ export default function DecryptPage({
               </div>
             )}
 
-            {/* Decrypted Text Viewer */}
+            {/* Text Viewer */}
             <div className="relative rounded-2xl border border-zinc-800 bg-zinc-900/80 overflow-hidden">
               {showRaw ? (
                 <textarea
