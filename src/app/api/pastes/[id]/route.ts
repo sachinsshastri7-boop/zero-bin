@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { redis, PasteRecord } from "@/lib/redis";
 
-// Enforce runtime execution to prevent build-time static evaluation
+// Enforce runtime execution to prevent build-time static evaluation in Next.js
 export const dynamic = "force-dynamic";
 
 export async function GET(
@@ -24,6 +24,7 @@ export async function GET(
     const parsedRecord: PasteRecord =
       typeof record === "string" ? JSON.parse(record) : record;
 
+    // Delete paste immediately from Upstash Redis if Burn After Reading is active
     if (parsedRecord.burnAfterRead) {
       await redis.del(key);
     }
@@ -33,6 +34,28 @@ export async function GET(
     console.error("Error retrieving paste:", error);
     return NextResponse.json(
       { error: "Internal server error while fetching paste." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const key = `paste:${id}`;
+
+    await redis.del(key);
+    return NextResponse.json(
+      { message: "Paste nuked successfully." },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error purging paste:", error);
+    return NextResponse.json(
+      { error: "Failed to nuke paste." },
       { status: 500 }
     );
   }
