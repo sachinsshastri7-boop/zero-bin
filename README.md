@@ -30,7 +30,7 @@
 
 ### 🚀 Security Architecture & Threat Model
 
-text
+```text
 [ Creator Client ]
         │
         ├── 1. Generate AES-GCM-256 Key (Local Memory)
@@ -45,6 +45,7 @@ text
         ├── 1. Fetch Ciphertext ◄───────────────────────────┘
         ├── 2. Read Key from window.location.hash
         └── 3. Decrypt Plaintext Locally in Browser
+```
 
 1. **Zero-Knowledge Principle:** The server never receives or logs the secret decryption key. Per RFC 3986, browsers strip everything after the `#` fragment before sending HTTP requests across the network.
 2. **Atomic Single-View Destruction:** When "Burn After Reading" is enabled, fetching the ciphertext executes an atomic deletion in Redis, preventing concurrent race conditions.
