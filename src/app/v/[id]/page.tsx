@@ -36,8 +36,8 @@ interface DecryptedPayload {
   decoy?: {
     text: string;
   } | null;
-  decoyPassphrase?: string;
-  realPassphrase?: string;
+  realPassphrase?: string | null;
+  decoyPassphrase?: string | null;
 }
 
 export default function DecryptPage({
@@ -82,14 +82,14 @@ export default function DecryptPage({
         const data: PasteData = await res.json();
         setPasteInfo(data);
 
-        // Check if custom password flag is set in hash
+        // If the URL has the password UI flag
         if (hash.includes(":pwd")) {
           setRequiresPassword(true);
           setLoading(false);
           return;
         }
 
-        // Standard direct decryption (no custom passphrase)
+        // Standard decryption path (no passphrase set)
         await decryptWithRawKey(hash, data);
       } catch (err: any) {
         console.error("Decryption error:", err);
@@ -103,34 +103,7 @@ export default function DecryptPage({
     fetchAndDecrypt();
   }, [id]);
 
-  const parseAndSetPayload = (rawString: string, userEnteredPwd?: string) => {
-    try {
-      const parsed: DecryptedPayload = JSON.parse(rawString);
-      
-      // Check if user entered decoy passphrase vs real passphrase
-      if (
-        userEnteredPwd &&
-        parsed.decoyPassphrase &&
-        userEnteredPwd === parsed.decoyPassphrase
-      ) {
-        setDisplayText(parsed.decoy?.text || "Decoy Cover Payload Active.");
-        setIsDecoyView(true);
-        setAttachment(null);
-        return;
-      }
-
-      if (parsed && parsed.real) {
-        setDisplayText(parsed.real.text || "");
-        setAttachment(parsed.real.attachment || null);
-        setIsDecoyView(false);
-        return;
-      }
-    } catch {
-      // Direct raw text fallback
-    }
-    setDisplayText(rawString);
-  };
-
+  // Fallback for pastes with NO passphrases
   const decryptWithRawKey = async (rawKeyBase64: string, data: PasteData) => {
     const rawKey = Uint8Array.from(atob(rawKeyBase64), (c) => c.charCodeAt(0));
     const cryptoKey = await crypto.subtle.importKey(
@@ -153,7 +126,15 @@ export default function DecryptPage({
     );
 
     const decoded = new TextDecoder().decode(decryptedBuffer);
-    parseAndSetPayload(decoded);
+    
+    try {
+      const parsed: DecryptedPayload = JSON.parse(decoded);
+      setDisplayText(parsed.real?.text || "");
+      setAttachment(parsed.real?.attachment || null);
+    } catch {
+      setDisplayText(decoded);
+    }
+    
     setLoading(false);
   };
 
@@ -165,27 +146,15 @@ export default function DecryptPage({
     setPasswordError(false);
 
     try {
-      const enc = new TextEncoder();
-      const keyMaterial = await crypto.subtle.importKey(
+      // 1. Decrypt using the URL hash key
+      const hash = window.location.hash.substring(1).split(":")[0];
+      const rawKey = Uint8Array.from(atob(hash), (c) => c.charCodeAt(0));
+      const cryptoKey = await crypto.subtle.importKey(
         "raw",
-        enc.encode(inputPassword),
-        "PBKDF2",
+        rawKey,
+        { name: "AES-GCM" },
         false,
-        ["deriveKey"]
-      );
-
-      const salt = enc.encode("zero-bin-salt-2026");
-      const derivedKey = await crypto.subtle.deriveKey(
-        {
-          name: "PBKDF2",
-          salt,
-          iterations: 100000,
-          hash: "SHA-256",
-        },
-        keyMaterial,
-        { name: "AES-GCM", length: 256 },
-        true,
-        ["encrypt", "decrypt"]
+        ["decrypt"]
       );
 
       const iv = Uint8Array.from(atob(pasteInfo.iv), (c) => c.charCodeAt(0));
@@ -193,17 +162,32 @@ export default function DecryptPage({
         c.charCodeAt(0)
       );
 
+      // 2. Unlock the JSON wrapper
       const decryptedBuffer = await crypto.subtle.decrypt(
         { name: "AES-GCM", iv },
-        derivedKey,
+        cryptoKey,
         ciphertext
       );
 
       const decoded = new TextDecoder().decode(decryptedBuffer);
-      parseAndSetPayload(decoded, inputPassword);
+      const parsed: DecryptedPayload = JSON.parse(decoded);
+
+      // 3. Verify which password was entered to reveal correct payload
+      if (parsed.decoyPassphrase && inputPassword === parsed.decoyPassphrase) {
+        setDisplayText(parsed.decoy?.text || "No cover text set.");
+        setIsDecoyView(true);
+        setAttachment(null);
+      } else if (parsed.realPassphrase && inputPassword === parsed.realPassphrase) {
+        setDisplayText(parsed.real.text);
+        setAttachment(parsed.real.attachment || null);
+        setIsDecoyView(false);
+      } else {
+        throw new Error("Incorrect passphrase");
+      }
+      
       setRequiresPassword(false);
     } catch (err) {
-      console.error("Password decryption failed:", err);
+      console.error(err);
       setPasswordError(true);
     } finally {
       setLoading(false);

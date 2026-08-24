@@ -13,7 +13,6 @@ import {
   Copy,
   Check,
   QrCode,
-  X,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import HowItWorksModal from "@/components/HowItWorksModal";
@@ -70,59 +69,33 @@ export default function Home() {
     setIsSubmitting(true);
 
     try {
+      // 1. Pack everything into a single payload
       const payload = {
         real: {
           text,
           attachment,
         },
         decoy: decoyText.trim() ? { text: decoyText } : null,
-        decoyPassphrase: decoyPassphrase.trim() || null,
         realPassphrase: passphrase.trim() || null,
+        decoyPassphrase: decoyPassphrase.trim() || null,
       };
 
       const payloadString = JSON.stringify(payload);
       const enc = new TextEncoder();
 
-      const activePassphrase = passphrase.trim() || decoyPassphrase.trim();
-
-      let keyBase64 = "";
-      let cryptoKey: CryptoKey;
-
-      if (activePassphrase) {
-        const keyMaterial = await crypto.subtle.importKey(
-          "raw",
-          enc.encode(activePassphrase),
-          "PBKDF2",
-          false,
-          ["deriveKey"]
-        );
-
-        const salt = enc.encode("zero-bin-salt-2026");
-        cryptoKey = await crypto.subtle.deriveKey(
-          {
-            name: "PBKDF2",
-            salt,
-            iterations: 100000,
-            hash: "SHA-256",
-          },
-          keyMaterial,
-          { name: "AES-GCM", length: 256 },
-          true,
-          ["encrypt", "decrypt"]
-        );
-      } else {
-        cryptoKey = await crypto.subtle.generateKey(
-          { name: "AES-GCM", length: 256 },
-          true,
-          ["encrypt", "decrypt"]
-        );
-        const exported = await crypto.subtle.exportKey("raw", cryptoKey);
-        keyBase64 = btoa(String.fromCharCode(...new Uint8Array(exported)));
-      }
+      // 2. ALWAYS generate a random URL key (so both passwords can work)
+      const cryptoKey = await crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+      );
+      const exported = await crypto.subtle.exportKey("raw", cryptoKey);
+      const keyBase64 = btoa(String.fromCharCode(...new Uint8Array(exported)));
 
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const ivBase64 = btoa(String.fromCharCode(...new Uint8Array(iv)));
 
+      // 3. Encrypt the payload wrapper
       const encryptedBuffer = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv },
         cryptoKey,
@@ -132,6 +105,7 @@ export default function Home() {
         String.fromCharCode(...new Uint8Array(encryptedBuffer))
       );
 
+      // 4. Send to Database
       const res = await fetch("/api/pastes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,13 +120,16 @@ export default function Home() {
       if (!res.ok) throw new Error("Failed to store paste.");
 
       const { id } = await res.json();
-      const hashFragment = activePassphrase ? `${keyBase64}:pwd` : keyBase64;
+      
+      // Check if either password was provided to append the UI trigger tag
+      const hasPassword = passphrase.trim() || decoyPassphrase.trim();
+      const hashFragment = hasPassword ? `${keyBase64}:pwd` : keyBase64;
       const fullUrl = `${window.location.origin}/v/${id}#${hashFragment}`;
 
       setCreatedUrl(fullUrl);
     } catch (err) {
       console.error("Encryption submit error:", err);
-      alert("Error creating encrypted paste.");
+      alert("Error creating encrypted paste. Check console for details.");
     } finally {
       setIsSubmitting(false);
     }
@@ -172,6 +149,7 @@ export default function Home() {
       )}
 
       <div className="w-full max-w-3xl space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="rounded-xl bg-emerald-500/10 p-2 text-emerald-400">
@@ -195,8 +173,10 @@ export default function Home() {
           </button>
         </div>
 
+        {/* Creation Form */}
         {!createdUrl ? (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Top Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl border border-zinc-800 bg-zinc-900/60">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
@@ -236,6 +216,7 @@ export default function Home() {
               </label>
             </div>
 
+            {/* Main Text Editor */}
             <div className="relative rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3">
               <textarea
                 rows={10}
@@ -261,6 +242,7 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Plausible Deniability Accordion */}
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
               <button
                 type="button"
@@ -281,7 +263,7 @@ export default function Home() {
               {showDecoy && (
                 <div className="p-4 pt-0 space-y-3">
                   <p className="text-[11px] text-zinc-400">
-                    Enter innocent cover text below. If someone asks for your secret, you can show this harmless cover payload instead.
+                    Enter innocent cover text below. If forced to reveal your secret, give the decoy passphrase to display this harmless payload instead.
                   </p>
                   
                   <textarea
@@ -308,6 +290,7 @@ export default function Home() {
               )}
             </div>
 
+            {/* Submit Action Button */}
             <button
               type="submit"
               disabled={isSubmitting || (!text.trim() && !attachment)}
@@ -317,6 +300,7 @@ export default function Home() {
             </button>
           </form>
         ) : (
+          /* Share Link Box */
           <div className="rounded-2xl border border-emerald-500/30 bg-zinc-900/60 p-6 space-y-6 text-center">
             <div className="space-y-2">
               <div className="inline-flex p-3 rounded-full bg-emerald-500/10 text-emerald-400">
