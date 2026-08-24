@@ -30,7 +30,7 @@
 
 ### 🚀 Security Architecture & Threat Model
 
-```text
+text
 [ Creator Client ]
         │
         ├── 1. Generate AES-GCM-256 Key (Local Memory)
@@ -45,26 +45,27 @@
         ├── 1. Fetch Ciphertext ◄───────────────────────────┘
         ├── 2. Read Key from window.location.hash
         └── 3. Decrypt Plaintext Locally in Browser
-Zero-Knowledge Principle: The server never receives or logs the secret decryption key. Per RFC 3986, browsers strip everything after the # fragment before sending HTTP requests across the network.
 
-Atomic Single-View Destruction: When "Burn After Reading" is enabled, fetching the ciphertext executes an atomic deletion in Redis, preventing concurrent race conditions.
+1. **Zero-Knowledge Principle:** The server never receives or logs the secret decryption key. Per RFC 3986, browsers strip everything after the `#` fragment before sending HTTP requests across the network.
+2. **Atomic Single-View Destruction:** When "Burn After Reading" is enabled, fetching the ciphertext executes an atomic deletion in Redis, preventing concurrent race conditions.
+3. **No-Store Caching Directives:** Implements `Cache-Control: no-store` headers across API endpoints to guarantee browser single-view enforcement.
+4. **No Unmaintained Dependencies:** Built using native browser primitives (`crypto.subtle`) for hardware-accelerated AES-GCM operations.
 
-No-Store Caching Directives: Implements Cache-Control: no-store headers across API endpoints to guarantee browser single-view enforcement.
+---
 
-No Unmaintained Dependencies: Built using native browser primitives (crypto.subtle) for hardware-accelerated AES-GCM operations.
+### 🛠️ Tech Stack
 
-🛠️ Tech Stack
-Framework: Next.js 16 (React 19, TypeScript)
+* **Framework:** Next.js 16 (React 19, TypeScript)
+* **Styling:** Tailwind CSS, Lucide React Icons
+* **Database:** Upstash Redis (REST API)
+* **Cryptography:** Native Web Crypto API (`AES-GCM`, `256-bit key length`, `PBKDF2`, `12-byte IV`)
+* **Sharing:** `qrcode.react`
 
-Styling: Tailwind CSS, Lucide React Icons
+---
 
-Database: Upstash Redis (REST API)
+### ⚡ Quick Start
 
-Cryptography: Native Web Crypto API (AES-GCM, 256-bit key length, PBKDF2, 12-byte IV)
-
-Sharing: qrcode.react
-
-⚡ Quick Start:
+```bash
 # 1. Clone repo
 git clone [https://github.com/sachinsshastri7-boop/zero-bin.git](https://github.com/sachinsshastri7-boop/zero-bin.git)
 cd zero-bin
@@ -78,3 +79,14 @@ npm install
 
 # 4. Run local server
 npm run dev
+
+---
+
+### Run these commands to push the fix to GitHub:
+
+```powershell
+cd zero-bin
+npm run build
+git add README.md
+git commit -m "docs: fix formatting in README.md"
+git push
