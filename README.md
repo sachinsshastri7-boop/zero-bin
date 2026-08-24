@@ -21,6 +21,7 @@
 
 * 🛡️ **Zero-Knowledge Architecture:** Payload encryption and decryption occur strictly in local browser memory.
 * 🎭 **Plausible Deniability (Decoy Payload):** Set a secondary cover payload to protect secrets under coercion. Entering a decoy trigger reveals harmless cover text.
+* **Zero Metadata Leakage:** The server cannot distinguish real vs. decoy ciphertext, so there is no server-side metadata leak revealing that a decoy even exists.
 * 📎 **Zero-Trace Attachments:** Convert files or images (up to 1 MB) into Base64 memory buffers, encrypted alongside text payloads.
 * 🔑 **Double-Layer Passphrase Protection:** Derived via PBKDF2 (100,000 iterations + SHA-256) for secondary user-defined secret keys.
 * 🔥 **Atomic Destruction & TTL:** Single-view "Burn After Reading" purges records from Upstash Redis immediately on the first fetch.
