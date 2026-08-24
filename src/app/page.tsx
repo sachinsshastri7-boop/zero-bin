@@ -20,7 +20,7 @@ import HowItWorksModal from "@/components/HowItWorksModal";
 
 export default function Home() {
   const [text, setText] = useState("");
-  const [ttl, setTtl] = useState("3600"); // 1 hour default
+  const [ttl, setTtl] = useState("3600");
   const [passphrase, setPassphrase] = useState("");
   const [burnAfterRead, setBurnAfterRead] = useState(false);
 
@@ -75,21 +75,23 @@ export default function Home() {
           text,
           attachment,
         },
-        decoy: decoyText ? { text: decoyText } : null,
+        decoy: decoyText.trim() ? { text: decoyText } : null,
         decoyPassphrase: decoyPassphrase.trim() || null,
+        realPassphrase: passphrase.trim() || null,
       };
 
       const payloadString = JSON.stringify(payload);
       const enc = new TextEncoder();
 
+      const activePassphrase = passphrase.trim() || decoyPassphrase.trim();
+
       let keyBase64 = "";
       let cryptoKey: CryptoKey;
 
-      if (passphrase.trim()) {
-        // Derive key from primary passphrase
+      if (activePassphrase) {
         const keyMaterial = await crypto.subtle.importKey(
           "raw",
-          enc.encode(passphrase),
+          enc.encode(activePassphrase),
           "PBKDF2",
           false,
           ["deriveKey"]
@@ -109,7 +111,6 @@ export default function Home() {
           ["encrypt", "decrypt"]
         );
       } else {
-        // Generate random key
         cryptoKey = await crypto.subtle.generateKey(
           { name: "AES-GCM", length: 256 },
           true,
@@ -119,11 +120,9 @@ export default function Home() {
         keyBase64 = btoa(String.fromCharCode(...new Uint8Array(exported)));
       }
 
-      // Generate 12-byte IV
       const iv = crypto.getRandomValues(new Uint8Array(12));
-      const ivBase64 = btoa(String.fromCharCode(...iv));
+      const ivBase64 = btoa(String.fromCharCode(...new Uint8Array(iv)));
 
-      // Encrypt payload
       const encryptedBuffer = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv },
         cryptoKey,
@@ -133,7 +132,6 @@ export default function Home() {
         String.fromCharCode(...new Uint8Array(encryptedBuffer))
       );
 
-      // Save to API
       const res = await fetch("/api/pastes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -148,12 +146,12 @@ export default function Home() {
       if (!res.ok) throw new Error("Failed to store paste.");
 
       const { id } = await res.json();
-      const hashFragment = passphrase.trim() ? `${keyBase64}:pwd` : keyBase64;
+      const hashFragment = activePassphrase ? `${keyBase64}:pwd` : keyBase64;
       const fullUrl = `${window.location.origin}/v/${id}#${hashFragment}`;
 
       setCreatedUrl(fullUrl);
     } catch (err) {
-      console.error(err);
+      console.error("Encryption submit error:", err);
       alert("Error creating encrypted paste.");
     } finally {
       setIsSubmitting(false);
@@ -174,7 +172,6 @@ export default function Home() {
       )}
 
       <div className="w-full max-w-3xl space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="rounded-xl bg-emerald-500/10 p-2 text-emerald-400">
@@ -198,57 +195,47 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Creation Form */}
         {!createdUrl ? (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Options Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-              <div>
-                <label className="text-xs font-medium text-zinc-400 block mb-1">
-                  Expiration
-                </label>
-                <select
-                  value={ttl}
-                  onChange={(e) => setTtl(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 focus:border-emerald-500/50 focus:outline-none"
-                >
-                  <option value="300">5 Minutes</option>
-                  <option value="3600">1 Hour</option>
-                  <option value="86400">24 Hours</option>
-                  <option value="604800">7 Days</option>
-                </select>
-              </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl border border-zinc-800 bg-zinc-900/60">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-zinc-400">Expiration</span>
+                  <select
+                    value={ttl}
+                    onChange={(e) => setTtl(e.target.value)}
+                    className="rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs text-zinc-200 focus:border-emerald-500/50 focus:outline-none"
+                  >
+                    <option value="300">5 Minutes</option>
+                    <option value="3600">1 Hour</option>
+                    <option value="86400">24 Hours</option>
+                    <option value="604800">7 Days</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="text-xs font-medium text-zinc-400 block mb-1">
-                  Primary Passphrase (Optional)
-                </label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-500" />
+                <div className="relative flex items-center">
+                  <Key className="absolute left-2.5 h-3.5 w-3.5 text-zinc-500" />
                   <input
                     type="password"
-                    placeholder="Secret passphrase..."
+                    placeholder="Optional Passphrase"
                     value={passphrase}
                     onChange={(e) => setPassphrase(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/50 focus:outline-none"
+                    className="w-44 rounded-lg border border-zinc-800 bg-zinc-950 pl-8 pr-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:border-emerald-500/50 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center pt-5">
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300 select-none">
-                  <input
-                    type="checkbox"
-                    checked={burnAfterRead}
-                    onChange={(e) => setBurnAfterRead(e.target.checked)}
-                    className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500/20"
-                  />
-                  <Flame className="h-4 w-4 text-amber-500" /> Burn After Reading
-                </label>
-              </div>
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300 select-none">
+                <input
+                  type="checkbox"
+                  checked={burnAfterRead}
+                  onChange={(e) => setBurnAfterRead(e.target.checked)}
+                  className="rounded border-zinc-700 bg-zinc-950 text-emerald-500 focus:ring-emerald-500/20"
+                />
+                <Flame className="h-4 w-4 text-amber-500" /> Burn After Reading
+              </label>
             </div>
 
-            {/* Editor Box */}
             <div className="relative rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3">
               <textarea
                 rows={10}
@@ -259,7 +246,9 @@ export default function Home() {
               />
 
               <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80 text-xs text-zinc-500">
-                <span>{text.length} chars</span>
+                <span>
+                  {text.length} chars | {(new Blob([text]).size / 1024).toFixed(2)} KB
+                </span>
                 <label className="flex items-center gap-1.5 cursor-pointer text-emerald-400 hover:text-emerald-300 transition font-medium">
                   <Paperclip className="h-4 w-4" />
                   {attachment ? attachment.name : "Attach File"}
@@ -272,7 +261,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Plausible Deniability Container */}
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
               <button
                 type="button"
@@ -293,7 +281,7 @@ export default function Home() {
               {showDecoy && (
                 <div className="p-4 pt-0 space-y-3">
                   <p className="text-[11px] text-zinc-400">
-                    Enter innocent cover text and an optional decoy passphrase. If forced to reveal your secret under coercion, handing over the decoy passphrase reveals this cover message instead.
+                    Enter innocent cover text below. If someone asks for your secret, you can show this harmless cover payload instead.
                   </p>
                   
                   <textarea
@@ -310,7 +298,7 @@ export default function Home() {
                     </label>
                     <input
                       type="password"
-                      placeholder="Separate decoy passphrase (e.g. decoy123)..."
+                      placeholder="Optional Decoy Passphrase..."
                       value={decoyPassphrase}
                       onChange={(e) => setDecoyPassphrase(e.target.value)}
                       className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:border-amber-500/50 focus:outline-none"
@@ -320,7 +308,6 @@ export default function Home() {
               )}
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isSubmitting || (!text.trim() && !attachment)}
@@ -330,7 +317,6 @@ export default function Home() {
             </button>
           </form>
         ) : (
-          /* Share Link Output Screen */
           <div className="rounded-2xl border border-emerald-500/30 bg-zinc-900/60 p-6 space-y-6 text-center">
             <div className="space-y-2">
               <div className="inline-flex p-3 rounded-full bg-emerald-500/10 text-emerald-400">
